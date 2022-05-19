@@ -5,13 +5,6 @@ from webdriver_manager.chrome import ChromeDriverManager
 
 import pandas as pd
 
-def scrapDiscount(driver):
-
-    priceWithoutDiscount = driver.find_elements(by=By.CLASS_NAME, value='original-price-nodiscount')
-
-    print(priceWithoutDiscount[0].text)
-
-    #return priceWithoutDiscount[0].text
 
 def scrapWeb(url = ""):
     #try:
@@ -37,24 +30,37 @@ def scrapWeb(url = ""):
         driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=chrom_opt)
         driver.get(url)
 
+        arrayReturn = []
+
         # fields are required: precioMain and navegacion-secundaria__migas-de-pan
         # to find the price and categories respectively
         pricebase = driver.find_elements(by=By.CLASS_NAME, value='precioMain')
         categories = driver.find_elements(by=By.CLASS_NAME, value='navegacion-secundaria__migas-de-pan')
+        priceWithoutDiscount = driver.find_elements(by=By.CLASS_NAME, value='original-price-nodiscount')
 
-        # Dont interes the father categorie "Home" because is remove
-        categories = categories[0].text.replace("Home", "")
 
-        # Give format to categories
-        for i in range(len(categories)):
-            if (categories[i - 1].islower() is True) and (categories[i].isupper() is True):
-                categories = categories[:i] + "/" + categories[i:]
-        if categories[0] == "/":
-            categories = categories[1:]
+        if pricebase:
+            arrayReturn.append(pricebase[0].text)
+
+
+            # Dont interes the father categorie "Home" because is remove
+            categories = categories[0].text.replace("Home", "")
+
+            # Give format to categories
+            for i in range(len(categories)):
+                if (categories[i - 1].islower() is True) and (categories[i].isupper() is True):
+                    categories = categories[:i] + "/" + categories[i:]
+            if categories[0] == "/":
+                categories = categories[1:]
+
+            arrayReturn.append(categories.split("/"))
+
+            if priceWithoutDiscount:
+                arrayReturn.append(priceWithoutDiscount[0].text)
 
         #scrapDiscount(driver)
 
-        return [pricebase[0].text, categories.split("/")]
+        return arrayReturn
 
 
     #except Exception as e:
