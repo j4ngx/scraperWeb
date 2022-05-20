@@ -109,10 +109,10 @@ def normalize(s):
     return s
 
 
-def fixNameProducts(fileProducts="", fileCategories=""):
+def getProducts(fileProducts="", fileCategories=""):
     try:
         df = readCSV(fileProducts)
-        productsName = []
+        products = []
         categories = categoriesFilter(fileCategories)
         utilCategories = []
 
@@ -120,13 +120,20 @@ def fixNameProducts(fileProducts="", fileCategories=""):
             if categories["Utiles"][category] == 1:
                 utilCategories.append(categories["Categoria"][category])
 
-        for product in range(len(df)):
-            if df["Categoria"][product] in utilCategories:
-                fixName = str(df["Articulo"][product]).replace(" ", "-").replace("\"", "").replace("'", "").replace(".","").replace("/", "-").replace("+", "")
+        for i in range(len(df)):
+            if df["Categoria"][i] in utilCategories:
+                product = []
+                fixName = str(df["Articulo"][i]).replace(" ", "-").replace("\"", "").replace("'", "").replace(".","").replace("/", "-").replace("+", "")
                 fixName = fixName.replace("--", "-").replace("(", "").replace(")", "").replace("ñ", "n")
-                productsName.append(normalize(fixName))
+                product.append(normalize(fixName))
+                product.append(df["Marca/Fabricante"][i])
+                product.append(df["P/N"][i])
+                product.append(df["Eean"][i])
+                product.append(df["Stock"][i])
 
-        return productsName
+                products.append(product)
+
+        return products
 
     except Exception as e:
         print("ERROR- Cant fix the name of products")
@@ -153,7 +160,7 @@ def createCSV(path = "."):
 def writeCSV(array,file = ""):
     with open(file, 'w', encoding="UTF8") as f:
         writer = csv.writer(f)
-        header = ['Name', 'URL', 'PVP', 'PAI', 'PVP sin Descuento', 'Category', 'Subcategory1', 'Subcategory2']
+        header = ['Name', 'URL','Marca/Fabricante','P/N','Eean','Stock', 'PVP', 'PAI', 'PVP sin Descuento', 'Category', 'Subcategory1', 'Subcategory2']
         writer.writerow(header)
 
         for row in array:
@@ -163,13 +170,20 @@ def writeCSV(array,file = ""):
 
 if __name__ == '__main__':
 
-    productsNameFixed = fixNameProducts('./docs/tarifa.csv', './docs/categorias.csv')
+    products = getProducts('./docs/tarifa.csv', './docs/categorias.csv')
     masiveDataArray = []
-    for product in range(10):
+    #for i in range(len(products)):
+    for i in range(200):
         dataCSV = []
-        dataCSV.append(productsNameFixed[product])
-        url = generateURL(productsNameFixed[product])
+        dataCSV.append(products[i][0])
+        url = generateURL(products[i][0])
         dataCSV.append(url)
+
+        dataCSV.append(products[i][1])
+        dataCSV.append(products[i][2])
+        dataCSV.append(products[i][3])
+        dataCSV.append(products[i][4])
+
         dataScrap = scrapWeb(url)
         for data in dataScrap:
             if isinstance(data,list):
@@ -177,6 +191,7 @@ if __name__ == '__main__':
                     dataCSV.append(category)
             else:
                 dataCSV.append(data)
+
         if len(dataCSV) > 4:
             masiveDataArray.append(dataCSV)
             #print(dataCSV)
