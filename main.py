@@ -9,6 +9,8 @@ import pandas as pd
 
 import csv
 
+import keyboard
+
 def scrapWeb(url = ""):
 
     chrom_opt = webdriver.ChromeOptions()
@@ -25,7 +27,10 @@ def scrapWeb(url = ""):
                                                         'site_engagement': 2, 'durable_storage': 2}}
     chrom_opt.add_experimental_option("prefs", prefs)
 
-    #chrom_opt.headless = True
+    user_agent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/95.0.4638.54 Safari/537.36'
+    chrom_opt.add_argument('user-agent={0}'.format(user_agent))
+
+    chrom_opt.headless = True
     #chrom_opt.add_argument("--headless")
 
     # inicialize a new webdriver
@@ -38,14 +43,16 @@ def scrapWeb(url = ""):
     # fields are required: precioMain and navegacion-secundaria__migas-de-pan
     # to find the price and categories respectively
     pricebase = driver.find_elements(by=By.CLASS_NAME, value='precioMain')
-    categories = driver.find_elements(by=By.CLASS_NAME, value='navegacion-secundaria__migas-de-pan')
-    priceWithoutDiscount = driver.find_elements(by=By.CLASS_NAME, value='original-price-nodiscount')
+
 
 
     if pricebase:
 
+        categories = driver.find_elements(by=By.CLASS_NAME, value='navegacion-secundaria__migas-de-pan')
+        priceWithoutDiscount = driver.find_elements(by=By.CLASS_NAME, value='original-price-nodiscount')
+
         # Dont interes the father categorie "Home" because is remove
-        categories = categories[0].text.replace("Home", "")
+        categories = categories[0].text.replace("Home", "").replace("/","-").replace("> Ver todos los Accesorios","")
         pvp = float(pricebase[0].text.replace("€","").replace(",","."))
         pai = str(round(pvp / 1.21,2)).replace(".",",") + "€"
 
@@ -145,35 +152,27 @@ def generateURL(s=""):
 
     return url
 
-
-def createCSV(path = "."):
-    file = path + "datosPCBOX.csv"
-    path = pathlib.Path(path)
-
-    header = ['Name', 'URL', 'PVP', 'PAI','PVP sin Descuento' 'Category', 'Subcategory1', 'Subcategory2']
-
-    if not path.exists():
-        with open(file,'w',encoding="UTF8") as f:
-            writer = csv.writer(f)
-            writer.writerow(header)
-
-def writeCSV(array,file = ""):
-    with open(file, 'w', encoding="UTF8") as f:
+# If you want to overwritte the file use type="w"
+# If you want to append new data and not overwritte the exist data use type= "a"
+def writeCSV(array,file = "",type="w"):
+    with open(file, type, encoding="UTF8") as f:
         writer = csv.writer(f)
-        header = ['Name', 'URL','Marca/Fabricante','P/N','Eean','Stock', 'PVP', 'PAI', 'PVP sin Descuento', 'Category', 'Subcategory1', 'Subcategory2']
-        writer.writerow(header)
 
         for row in array:
                 writer.writerow(row)
-
         f.close()
 
 if __name__ == '__main__':
 
     products = getProducts('./docs/tarifa.csv', './docs/categorias.csv')
     masiveDataArray = []
+
+    count = 0
+
     #for i in range(len(products)):
-    for i in range(200):
+    for i in range(10000):
+        count += 1
+        print(count)
         dataCSV = []
         dataCSV.append(products[i][0])
         url = generateURL(products[i][0])
@@ -192,15 +191,15 @@ if __name__ == '__main__':
             else:
                 dataCSV.append(data)
 
-        if len(dataCSV) > 4:
+        if len(dataCSV) > 7:
             masiveDataArray.append(dataCSV)
             #print(dataCSV)
 
-    createCSV("./docs/")
+        if keyboard.is_pressed('esc'):
+            print('You Pressed A Key!')
+            break
+
+
     writeCSV(masiveDataArray,"./docs/datosPCBOX.csv")
 
 
-
-
-    print(scrapWeb("https://www.pccomponentes.com/xiaomi-redmi-note-11-4-128gb-azul-ocaso-libre"))
-    print(scrapWeb("https://www.pccomponentes.com/asus-chromebook-flip-z3400ft-intel-core-m3-8100y-8gb-64gb-emmc-14-tactil"))
