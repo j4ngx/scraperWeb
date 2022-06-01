@@ -1,5 +1,3 @@
-import pathlib
-
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.service import Service
@@ -13,6 +11,7 @@ import keyboard
 
 def scrapWeb(url = ""):
 
+    # Chromedriver options are set
     chrom_opt = webdriver.ChromeOptions()
     prefs = {'profile.default_content_setting_values': {'cookies': 2, 'images': 2, 'javascript': 2, 'plugins': 2,
                                                         'popups': 2, 'geolocation': 2, 'notifications': 2,
@@ -31,10 +30,8 @@ def scrapWeb(url = ""):
     chrom_opt.add_argument('user-agent={0}'.format(user_agent))
 
     chrom_opt.headless = True
-    #chrom_opt.add_argument("--headless")
 
-    # inicialize a new webdriver
-
+    # inicialize a new webdriver with options
     driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=chrom_opt)
     driver.get(url)
 
@@ -43,8 +40,6 @@ def scrapWeb(url = ""):
     # fields are required: precioMain and navegacion-secundaria__migas-de-pan
     # to find the price and categories respectively
     pricebase = driver.find_elements(by=By.CLASS_NAME, value='precioMain')
-
-
 
     if pricebase:
 
@@ -75,26 +70,11 @@ def scrapWeb(url = ""):
 
     return arrayReturn
 
-
-
-def categoriesFilter(file=""):
+# Read a csv file
+def readCSV(array, file="",separator=";"):
     try:
-        col_list = ["Categoria", "Utiles"]
-        df = pd.read_csv(file, sep=";", usecols=col_list)
-
-        return df
-    except Exception as e:
-        print("Cant read the file categorias")
-        print(e)
-
-
-def readCSV(file=""):
-    try:
-        # Create a array with the names of all categories
-        col_list = ["Codigo", "Categoria", "Articulo", "PVP SIN IVA", "PVP", "Stock", "Plazo", "P/N", "Eean", "Peso",
-                    "Marca/Fabricante", "Canon"]
         # Read the CSV file with ";" as a delimiter and asign the names of the columns
-        df = pd.read_csv(file, sep=";", usecols=col_list)
+        df = pd.read_csv(file, sep=separator, usecols=array)
 
         return df
 
@@ -102,7 +82,7 @@ def readCSV(file=""):
         print('ERROR- when trying to read CSV file')
         print(e)
 
-
+# This function replace accented vowels for corresponding vowels
 def normalize(s):
     replacements = (
         ("á", "a"),
@@ -115,12 +95,18 @@ def normalize(s):
         s = s.replace(a, b)
     return s
 
-
+# Recibe two files. One's a file with name of products and other with classified categories
 def getProducts(fileProducts="", fileCategories=""):
     try:
-        df = readCSV(fileProducts)
+        # Create a array with the names of all categories
+        header_products = ["Codigo", "Categoria", "Articulo", "PVP SIN IVA", "PVP", "Stock", "Plazo", "P/N", "Eean", "Peso",
+                    "Marca/Fabricante", "Canon"]
+
+        header_categories = ["Categoria", "Utiles"]
+
+        df = readCSV(header_products, fileProducts)
         products = []
-        categories = categoriesFilter(fileCategories)
+        categories = readCSV(header_categories,fileCategories)
         utilCategories = []
 
         for category in range(len(categories)):
@@ -146,7 +132,17 @@ def getProducts(fileProducts="", fileCategories=""):
         print("ERROR- Cant fix the name of products")
         print(e)
 
+def checkProduct(file=""):
+    header_products = ['Name', 'URL', 'PVP', 'PAI', 'PVP sin Descuento' 'Category', 'Subcategory1', 'Subcategory2']
+    df = readCSV(header_products,file,",")
+    urls = []
 
+    for i in range(len(df)):
+        urls.append(str(df["URL"][i]))
+
+    return urls
+
+# Recibe a string with correct format to generate other string with url format
 def generateURL(s=""):
     url = "https://www.pccomponentes.com/" + s.lower()
 
@@ -155,51 +151,66 @@ def generateURL(s=""):
 # If you want to overwritte the file use type="w"
 # If you want to append new data and not overwritte the exist data use type= "a"
 def writeCSV(array,file = "",type="w"):
-    with open(file, type, encoding="UTF8") as f:
-        writer = csv.writer(f)
+    if type == "a":
+        with open(file, type, encoding="UTF8") as f:
+            writer = csv.writer(f)
 
-        for row in array:
+            for row in array:
+                    writer.writerow(row)
+            f.close()
+    elif type == "w":
+        with open(file, type, encoding="UTF8") as f:
+            writer = csv.writer(f)
+
+            header = ['Name', 'URL', 'PVP', 'PAI', 'PVP sin Descuento' 'Category', 'Subcategory1', 'Subcategory2']
+            writer.writerow(header)
+
+            for row in array:
                 writer.writerow(row)
-        f.close()
+            f.close()
 
 if __name__ == '__main__':
 
     products = getProducts('./docs/tarifa.csv', './docs/categorias.csv')
+    url_products_scraper = checkProduct("./docs/datosPCBOX.csv")
     masiveDataArray = []
 
     count = 0
 
-    #for i in range(len(products)):
-    for i in range(10000):
-        count += 1
-        print(count)
-        dataCSV = []
-        dataCSV.append(products[i][0])
+    for i in range(len(products)):
+    #for i in range(10000):
+
         url = generateURL(products[i][0])
-        dataCSV.append(url)
+        if not url in url_products_scraper:
+            count += 1
+            print(count)
 
-        dataCSV.append(products[i][1])
-        dataCSV.append(products[i][2])
-        dataCSV.append(products[i][3])
-        dataCSV.append(products[i][4])
+            dataCSV = []
+            dataCSV.append(products[i][0])
 
-        dataScrap = scrapWeb(url)
-        for data in dataScrap:
-            if isinstance(data,list):
-                for category in data:
-                    dataCSV.append(category)
-            else:
-                dataCSV.append(data)
+            dataCSV.append(url)
 
-        if len(dataCSV) > 7:
-            masiveDataArray.append(dataCSV)
-            #print(dataCSV)
+            dataCSV.append(products[i][1])
+            dataCSV.append(products[i][2])
+            dataCSV.append(products[i][3])
+            dataCSV.append(products[i][4])
+
+            dataScrap = scrapWeb(url)
+            for data in dataScrap:
+                if isinstance(data,list):
+                    for category in data:
+                        dataCSV.append(category)
+                else:
+                    dataCSV.append(data)
+
+            if len(dataCSV) > 7:
+                masiveDataArray.append(dataCSV)
+                #print(dataCSV)
 
         if keyboard.is_pressed('esc'):
             print('You Pressed A Key!')
             break
 
 
-    writeCSV(masiveDataArray,"./docs/datosPCBOX.csv")
-
+    writeCSV(masiveDataArray,"./docs/datosPCBOX.csv","a")
 
