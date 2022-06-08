@@ -5,6 +5,9 @@ from webdriver_manager.chrome import ChromeDriverManager
 
 import pandas as pd
 
+import os
+import datetime
+
 import csv
 
 import keyboard
@@ -107,14 +110,14 @@ def getProducts(fileProducts="", fileCategories=""):
         df = readCSV(header_products, fileProducts)
         products = []
         categories = readCSV(header_categories,fileCategories)
-        utilCategories = []
+        notUtilCategories = []
 
         for category in range(len(categories)):
-            if categories["Utiles"][category] == 1:
-                utilCategories.append(categories["Categoria"][category])
+            if categories["Utiles"][category] == 0:
+                notUtilCategories.append(categories["Categoria"][category])
 
         for i in range(len(df)):
-            if df["Categoria"][i] in utilCategories:
+            if not df["Categoria"][i] in notUtilCategories:
                 product = []
                 fixName = str(df["Articulo"][i]).replace(" ", "-").replace("\"", "").replace("'", "").replace(".","").replace("/", "-").replace("+", "")
                 fixName = fixName.replace("--", "-").replace("(", "").replace(")", "").replace("ñ", "n")
@@ -151,32 +154,44 @@ def generateURL(s=""):
 # If you want to overwritte the file use type="w"
 # If you want to append new data and not overwritte the exist data use type= "a"
 def writeCSV(array,file = "",type="w"):
-    if type == "a":
+
+    if not os.path.isfile(file):
+
         with open(file, type, encoding="UTF8") as f:
             writer = csv.writer(f)
+            header = ['Name', 'URL', 'PVP', 'PAI', 'PVP sin Descuento' 'Category', 'Subcategory1', 'Subcategory2']
+            writer.writerow(header)
 
             for row in array:
                     writer.writerow(row)
             f.close()
-    elif type == "w":
+    else:
         with open(file, type, encoding="UTF8") as f:
             writer = csv.writer(f)
-
-            header = ['Name', 'URL', 'PVP', 'PAI', 'PVP sin Descuento' 'Category', 'Subcategory1', 'Subcategory2']
-            writer.writerow(header)
 
             for row in array:
                 writer.writerow(row)
             f.close()
 
+def createCSV(file = ""):
+    with open(file, "w", encoding="UTF8") as f:
+        writer = csv.writer(f)
+        header = ['Name', 'URL', 'PVP', 'PAI', 'PVP sin Descuento' 'Category', 'Subcategory1', 'Subcategory2']
+        writer.writerow(header)
+
+        f.close()
+
+
 if __name__ == '__main__':
+    if not os.path.isfile("./docs/datosPCBOX.csv"):
+        createCSV("./docs/datosPCBOX.csv")
 
     products = getProducts('./docs/tarifa.csv', './docs/categorias.csv')
+    print(len(products))
     url_products_scraper = checkProduct("./docs/datosPCBOX.csv")
     masiveDataArray = []
 
     count = 0
-
     for i in range(len(products)):
     #for i in range(10000):
 
@@ -211,6 +226,16 @@ if __name__ == '__main__':
             print('You Pressed A Key!')
             break
 
+    writeCSV(masiveDataArray, "docs/datosPCBOX.csv", "a")
 
-    writeCSV(masiveDataArray,"./docs/datosPCBOX.csv","a")
+    if os.path.isfile("./docs/datosPCBOX.csv"):
+        header = ['Name', 'URL', 'PVP', 'PAI', 'PVP sin Descuento' 'Category', 'Subcategory1', 'Subcategory2']
+        df = readCSV(header, "docs/datosPCBOX.csv", ",")
 
+        lastRow = str(df["URL"][len(df)-1])
+
+        print(lastRow)
+        urlLastProduct = generateURL(products[len(products)-1][0])
+        print(urlLastProduct)
+        if urlLastProduct == lastRow:
+            os.rename("./docs/datosPCBOX.csv", "./docs/datosDefinitivos")
